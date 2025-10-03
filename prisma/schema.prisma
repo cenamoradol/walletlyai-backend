@@ -1,0 +1,113 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                  Int                 @id @default(autoincrement())
+  email               String              @unique
+  password            String
+  plan                String              @default("Free")
+  credits             Int                 @default(20)
+  subscriptionExpires DateTime?
+  showAds             Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  payments            PaymentHistory[]
+  creditsHistory      CreditHistory[]
+  transactions        Transaction[]
+  categories          Category[]
+  budgets             Budget[]
+  notifications       NotificationToken[]
+}
+
+model SubscriptionPlan {
+  id             Int     @id @default(autoincrement())
+  name           String  @unique
+  monthlyCredits Int
+  price          Float
+  showAds        Boolean @default(false)
+}
+
+model PaymentHistory {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  planName      String
+  description   String
+  paymentMethod String
+  invoiceUrl    String?
+  amount        Float
+  currency      String
+  createdAt     DateTime @default(now())
+}
+
+model CreditHistory {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  action      String
+  creditsUsed Int
+  createdAt   DateTime @default(now())
+}
+
+model Transaction {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  type          String // ingreso | gasto
+  amount        Float
+  date          DateTime
+  categoryId    Int
+  category      Category @relation(fields: [categoryId], references: [id])
+  paymentMethod String
+  note          String?
+
+  // Campos de recurrencia
+  isRecurring Boolean   @default(false)
+  recurrence  String? // daily | weekly | biweekly | monthly
+  endDate     DateTime?
+}
+
+model Category {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id])
+  name         String
+  type         String // ingreso | gasto
+  transactions Transaction[]
+  budgets      Budget[] // 👈 relación inversa añadida
+}
+
+model Budget {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  user        User          @relation(fields: [userId], references: [id])
+  type        String // mensual | quincenal
+  amount      Float
+  categoryId  Int?
+  category    Category?     @relation(fields: [categoryId], references: [id])
+  periodStart DateTime
+  periodEnd   DateTime
+  alerts      BudgetAlert[]
+}
+
+model BudgetAlert {
+  id        Int     @id @default(autoincrement())
+  budgetId  Int
+  budget    Budget  @relation(fields: [budgetId], references: [id])
+  threshold Int
+  message   String?
+}
+
+model NotificationToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  token     String
+  createdAt DateTime @default(now())
+}
